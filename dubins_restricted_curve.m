@@ -20,9 +20,12 @@
 %   intuitive tool for finding the Dubins path. 
 
 % Reference:
+%       https://github.com/AndrewWalker/Dubins-Curves#shkel01
+%       Shkel, A. M. and Lumelsky, V. (2001). "Classification of the Dubins
+%                  set". Robotics and Autonomous Systems 34 (2001) 179�V202
 %       https://github.com/UlysseVautier/MATLAB/Dubins-Curves
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Original Source: Ulysse Vautier
+% Original Source: Andrew Walker, Ulysse Vautier
 % Date: 2019.01.01
 % contact: ulysse.vautier [at] gmail.com
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

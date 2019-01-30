@@ -10,9 +10,12 @@
 %       r: turning radius, also the scaling factor for the curve paramater
 %       SEG_param: defines the parameter of the three segments in row vector
 % Reference:
+%       https://github.com/AndrewWalker/Dubins-Curves#shkel01
+%       Shkel, A. M. and Lumelsky, V. (2001). "Classification of the Dubins
+%                  set". Robotics and Autonomous Systems 34 (2001) 179�V202
 %       https://github.com/UlysseVautier/MATLAB/Dubins-Curves
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Original Source: Ulysse Vautier
+% Original Source: Andrew Walker, Ulysse Vautier
 % Date: 2019.01.01
 % contact: ulysse.vautier [at] gmail.com
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -224,20 +227,17 @@ function param = dubins_CSCSC(p1, p2, r, bitangent, restriction, C1,C2,C3)
         param.angle = [0 0];
         return;
     end
-    %if(c < pi)
-    %    param.SEG(1) = -1;
-    %    param.angle = [0 0];
-    %    return;
-    %end
     
     eangleb = eangle-C3*pi/2;
     aangleb = aangle+C1*pi/2;
     b = (-sin(eangleb).*dx+cos(eangleb).*dy)./sin(aangleb-eangleb);
     d = -1./cos(eangleb).*(cos(aangleb).*b-dx);
+    %b = (sin(aangleb).*dx-cos(aangleb).*dy)./sin(eangleb-aangleb);
+    %d = 1./cos(aangleb).*(cos(eangleb).*b+dx);
     
     i = 0;
-    if(b <0 && b > -1000)
-        while(b <0 && i < 1000)
+    if(b <0 && b > -10000)
+        while(b <0 && i < 10000)
             aangle = wrapTo2Pi(aangle - C1*0.001);
             eangleb = eangle-C3*pi/2;
             aangleb = aangle+C1*pi/2;
