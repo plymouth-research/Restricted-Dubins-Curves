@@ -49,7 +49,7 @@
 % OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN      %
 % THE SOFTWARE.                                                                  %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function [ path ] = dubins_restricted_curve( p1, p2, r, psi, delta, stepsize, quiet )
+function [ path ] = dubins_restricted_curve( p1, p2, r, psi, delta, stepsize, quiet, all )
 %%%%%%%%%%%%%%%%%%%%%%%%% DEFINE %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % there are 8 types of dubin's curve, only one will have minimum cost
     % LSLSL = 1;
@@ -100,6 +100,9 @@ function [ path ] = dubins_restricted_curve( p1, p2, r, psi, delta, stepsize, qu
     if nargin < 7 
         quiet = 0;  %Default/undefined is not quiet
     end
+    if nargin < 8 
+        all = 0;  %Default/undefined is not all
+    end
     
     if ~quiet
         close(findobj('type','figure','name','Dubins curve'));
@@ -107,7 +110,7 @@ function [ path ] = dubins_restricted_curve( p1, p2, r, psi, delta, stepsize, qu
     end
     
     % main function
-    param = dubins_restricted_core(p1, p2, r, psi, delta);
+    [param, test] = dubins_restricted_core(p1, p2, r, psi, delta);
     if stepsize <= 0
         stepsize = dubins_length(param)/1000;
     end
@@ -127,6 +130,21 @@ function [ path ] = dubins_restricted_curve( p1, p2, r, psi, delta, stepsize, qu
         text(p1(1), p1(2),'start','HorizontalAlignment','center');
         text(p2(1), p2(2),'end','VerticalAlignment','top');
         disp('plot drawing time'); toc;
+        if(all)
+            for i = 1:size(test,2)
+                if(test(i).SEG_param ~= -1)
+                    figure('name',int2str(test(i).type));
+                    stepsize = dubins_length(param)/1000;
+                    test_path = dubins_path_sample_many(test(i), stepsize);
+                    DrawPacman(p1, p2, r, psi, delta);
+                    plot(test_path(:,1), test_path(:,2), 'LineWidth' , 2); axis equal; hold on
+                    scatter(p1(1), p1(2), 45, '*','r','LineWidth',1); hold on;
+                    scatter(p2(1), p2(2), 45, 'square','b','LineWidth',1); hold on;
+                    text(p1(1), p1(2),'start','HorizontalAlignment','center');
+                    text(p2(1), p2(2),'end','VerticalAlignment','top');
+                end
+            end
+        end
     end
 end
 
@@ -205,7 +223,9 @@ function end_pt = dubins_path_sample(param, t)
     DIRDATASTANDARD = [ L_SEG, S_SEG, L_SEG ;...
                 R_SEG, S_SEG, R_SEG ;...
                 R_SEG, S_SEG, L_SEG ;...
-                L_SEG, S_SEG, R_SEG ]; 
+                L_SEG, S_SEG, R_SEG ;...
+                L_SEG, R_SEG, L_SEG ;...
+                R_SEG, L_SEG, R_SEG ]; 
     %%%%%%%%%%%%%%%%%%%%%%%%% END DEFINE %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
     % Generate the target configuration

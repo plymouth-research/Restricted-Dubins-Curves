@@ -41,7 +41,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
-function [ param ] = dubins_restricted_core( p1, p2, r, psi, delta )
+function [ param, all ] = dubins_restricted_core( p1, p2, r, psi, delta )
 %%%%%%%%%%%%%%%%%%%%%%%%% DEFINE %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % there are 8 types of dubin's curve, only one will have minimum cost
     % LSLSL = 1;
@@ -104,57 +104,79 @@ function [ param ] = dubins_restricted_core( p1, p2, r, psi, delta )
     Ol = [p1(1:2);p2(1:2)] + [r*cos(p1(3)+u.left*pi/2), r*sin(p1(3)+u.left*pi/2); r*cos(p2(3)+u.left*pi/2), r*sin(p2(3)+u.left*pi/2)];
     Or = [p1(1:2);p2(1:2)] + [r*cos(p1(3)+u.right*pi/2), r*sin(p1(3)+u.right*pi/2); r*cos(p2(3)+u.right*pi/2), r*sin(p2(3)+u.right*pi/2)];
     
-    % Bitangent points
+    % Bitangent angles
     %Outerleft = zeros(1,2);
     %Outerright = zeros(1,2);
     Innerleft = 2*pi*ones(1,2);
     Innerright = 2*pi*ones(1,2);
     
-    Outerleft = wrapTo2Pi(atan2(Ol(2,2)-Ol(1,2), Ol(2,1)-Ol(1,1)));
+    Outerleft = wrapTo2Pi(atan2(Ol(2,2)-Ol(1,2), Ol(2,1)-Ol(1,1)))-u.left*pi/2;
     Outerleft(2) = Outerleft(1);
+    
+    TangentsL = wrapTo2Pi(atan2(Ol(2,2)-Ol(1,2), Ol(2,1)-Ol(1,1)))+acos(norm(Ol(2,:)-Ol(1,:))/(4*r));
+    TangentsL(2) = wrapTo2Pi(atan2(Ol(2,2)-Ol(1,2), Ol(2,1)-Ol(1,1)))-pi-acos(norm(Ol(2,:)-Ol(1,:))/(4*r));
+    
+    TangentsR = wrapTo2Pi(atan2(Or(2,2)-Or(1,2), Or(2,1)-Or(1,1)))-acos(norm(Or(2,:)-Or(1,:))/(4*r));
+    TangentsR(2) = wrapTo2Pi(atan2(Or(2,2)-Or(1,2), Or(2,1)-Or(1,1)))+pi+acos(norm(Or(2,:)-Or(1,:))/(4*r));
 
     if(norm(Or(2,:)-Ol(1,:)) > 2*r)
         Innerleft = wrapTo2Pi(atan2(Or(2,2)-Ol(1,2), Or(2,1)-Ol(1,1))-u.left*acos(2*r/norm(Or(2,:)-Ol(1,:))));
-        Innerleft(2) = wrapTo2Pi(Innerleft(1)-pi);
+        Innerleft(2) = wrapTo2Pi(Innerleft(1)+pi);
     end
 
-    Outerright = wrapTo2Pi(atan2(Or(2,2)-Or(1,2), Or(2,1)-Or(1,1)));
+    Outerright = wrapTo2Pi(atan2(Or(2,2)-Or(1,2), Or(2,1)-Or(1,1)))-u.right*pi/2;
     Outerright(2) = Outerright(1);
 
     if(norm(Ol(2,:)-Or(1,:)) > 2*r)
         Innerright = wrapTo2Pi(atan2(Ol(2,2)-Or(1,2), Ol(2,1)-Or(1,1))-u.right*acos(2*r/norm(Ol(2,:)-Or(1,:))));
-        Innerright(2) = wrapTo2Pi(Innerright(1)-pi);
+        Innerright(2) = wrapTo2Pi(Innerright(1)+pi);
     end
     
-    param.achievable = is_dubins_achievable(p1, p2, Ol, Or, Outerleft, Outerright, Innerleft, Innerright, restriction, r);
+    param.achievable = is_dubins_achievable(p1, p2, Ol, Or, Outerleft, Outerright, Innerleft, Innerright, TangentsL, TangentsR, restriction, r);
 
     disp(param.achievable)
-    %% Second, we find all possible curves
-    if(Innerright(1) ~= 2*pi)
-        Innerright = wrapTo2Pi(Innerright + [pi/2,-pi/2]);
-    end
-    if(Innerleft(1) ~= 2*pi)
-        Innerleft = wrapTo2Pi(Innerleft + [pi/2,-pi/2]);
-    end
+    %% Calculate all possible curves if not achievable
     
-    best_word = -1;
-    best_cost = -1;
-    if(~param.achievable.LSL)
+    test_param(9,:).SEG = -1;
+    test_param(10,:).SEG = -1;
+    test_param(11,:).SEG = -1;
+    test_param(12,:).SEG = -1;
+    test_param(9,:).angle = -1;
+    test_param(10,:).angle = -1;
+    test_param(11,:).angle = -1;
+    test_param(12,:).angle = -1;
+    % Compute path for each configuration
+    if(~param.achievable.LSL && ~param.achievable.LRL)
         test_param(1,:) = dubins_CSCSC(p1, p2, r, Outerleft, restriction, u.left, u.left, u.left);
         test_param(2,:) = dubins_CSCSC(p1, p2, r, Outerleft, restriction, u.left, u.right, u.left);
     else
-        test_param(1,:) = dubins_LSL(alpha,beta,d);
-        test_param(2,:).SEG = -1;
+        if(norm(Or(2,:)-Ol(1,:)) > 4*r)
+            test_param(1,:) = dubins_LSL(alpha,beta,d);
+            test_param(2,:).SEG = -1;
+        else
+            test_param(1,:).SEG = -1;
+            test_param(2,:).SEG = -1;
+            test_param(10,:) = dubins_LRL(alpha,beta,d);
+        end
     end
     
-    if(~param.achievable.RSR)
+    if(~param.achievable.RSR && ~param.achievable.RLR)
         test_param(3,:) = dubins_CSCSC(p1, p2, r, Outerright, restriction, u.right, u.left, u.right);
         test_param(4,:) = dubins_CSCSC(p1, p2, r, Outerright, restriction, u.right, u.right, u.right);
+            test_param(11,:).SEG = -1;
+            test_param(12,:).SEG = -1;
     else
-        test_param(3,:) = dubins_RSR(alpha,beta,d);
-        test_param(4,:).SEG = -1;
+        if(norm(Or(2,:)-Ol(1,:)) > 4*r)
+            test_param(3,:) = dubins_RSR(alpha,beta,d);
+            test_param(4,:).SEG = -1;
+        else
+            test_param(3,:).SEG = -1;
+            test_param(4,:).SEG = -1;
+            test_param(12,:) = dubins_RLR(alpha,beta,d);
+        end
     end
-    if(Innerright(1) ~= 2*pi)
+    
+    if(norm(Ol(2,:)-Or(1,:)) > 2*r)
         if(~param.achievable.RSL)
             test_param(5,:) = dubins_CSCSC(p1, p2, r, Innerright, restriction, u.right, u.left, u.left);
             test_param(6,:) = dubins_CSCSC(p1, p2, r, Innerright, restriction, u.right, u.right, u.left);
@@ -168,7 +190,7 @@ function [ param ] = dubins_restricted_core( p1, p2, r, psi, delta )
     end
         
     
-    if(Innerleft(1) ~= 2*pi)
+    if(norm(Or(2,:)-Ol(1,:)) > 2*r)
         if(~param.achievable.LSR)
             test_param(7,:) = dubins_CSCSC(p1, p2, r, Innerleft, restriction, u.left, u.left, u.right);
             test_param(8,:) = dubins_CSCSC(p1, p2, r, Innerleft, restriction, u.left, u.right, u.right);
@@ -181,7 +203,10 @@ function [ param ] = dubins_restricted_core( p1, p2, r, psi, delta )
         test_param(8,:).SEG = -1;
     end
     
-    for i = 1:1:8
+    % Find the shortest one
+    best_word = -1;
+    best_cost = -1;
+    for i = 1:1:12
         if(test_param(i).SEG ~= -1) 
             cost = sum(test_param(i,:).SEG);
             if(cost < best_cost) || (best_cost == -1)
@@ -193,6 +218,16 @@ function [ param ] = dubins_restricted_core( p1, p2, r, psi, delta )
             end
         end
     end
+    
+    for i = 1:1:12
+        all(i).SEG_param = test_param(i,:).SEG;
+        all(i).angle = test_param(i,:).angle;
+        all(i).type = i;
+        all(i).p_init = p1;
+        all(i).r = r;
+        all(i).STATUS = 0;
+        all(i).achievable = 0;
+    end
 
     if(best_word == -1) 
         param.STATUS = -2;             % NO PATH
@@ -203,83 +238,103 @@ function [ param ] = dubins_restricted_core( p1, p2, r, psi, delta )
 end
 
 function param = dubins_CSCSC(p1, p2, r, bitangent, restriction, C1,C2,C3)
+    % Measure distances between circles
     dx = p2(1) + r*cos(p2(3)+C3*pi/2) - (p1(1)  + r*cos(p1(3)+C1*pi/2));
     dy = p2(2) + r*sin(p2(3)+C3*pi/2) - (p1(2)  + r*sin(p1(3)+C1*pi/2));
     
+    % Tranforming to circle frame
+    theta1b = p1(3)-C1*pi/2;
+    theta2b = p2(3)-C3*pi/2;
+    
+    % Compute angle on C1 and C3, closest to the bitangent
     aangle = bitangent(1);
     eangle = bitangent(2);
+    %[rd,ric1] = min(wrapTo2Pi(C1*(restriction - p1(3))));
+    %[rd,ric2] = min(wrapTo2Pi(C3*(p2(3)-restriction)));
     
-    [rd,ric1] = min(wrapTo2Pi(C1*(restriction - p1(3))));
-    [rd,ric2] = min(wrapTo2Pi(C3*(p2(3)-restriction)));
-    
-    [a,ai] = min([wrapTo2Pi(C1*(bitangent(1) - p1(3))), wrapTo2Pi(C1*(restriction(ric1)-p1(3)))]);
-    if(ai == 2 || wrapTo2Pi(C1*(bitangent(1) - p1(3))) == wrapTo2Pi(C1*(restriction(ric1)-p1(3))))
-        aangle = restriction(ric1);
+    [a,ai] = min([wrapTo2Pi(C1*(bitangent(1)-theta1b)), wrapTo2Pi(C1*(restriction((-C1+3)/2)-C1*pi/2-theta1b))]);%, wrapTo2Pi(-C1*(bitangent(1)-theta1b))]);
+    %if(ai == 2 || wrapTo2Pi(C1*(bitangent(1) - theta1b)) == wrapTo2Pi(C1*(restriction((-C1+3)/2)-C1*pi/2-theta1b)))
+    %    aangle = restriction(ric1);
+    %end
+    if(ai == 1)
+        aangle = bitangent(1);
+    elseif(ai == 2)
+        aangle = wrapTo2Pi(restriction((-C1+3)/2)-C1*pi/2);
+    else
+        aangle = theta1b;
     end
-    [e,ei] = min([wrapTo2Pi(C3*(p2(3) - bitangent(2))),wrapTo2Pi(C3*(p2(3)-restriction(ric2)))]);
-    if(ei == 2 || wrapTo2Pi(C3*(p2(3) - bitangent(2))) == wrapTo2Pi(C3*(p2(3)-restriction(ric2))))
-        eangle = restriction(ric2);
+    [e,ei] = min([wrapTo2Pi(C3*(theta2b - bitangent(2))),wrapTo2Pi(C3*(theta2b-restriction((C3+3)/2)+C3*pi/2))]);%,wrapTo2Pi(-C3*(theta2b - bitangent(2)))]);
+    %if(ei == 2 || wrapTo2Pi(C3*(theta2b - bitangent(2))) == wrapTo2Pi(C3*(theta2b-restriction((-C3+3)/2)+C3*pi/2)))
+    %    eangle = restriction(ric2);
+    %end
+    if(ei == 1)
+        eangle = bitangent(2);
+    elseif(ei == 2)
+        eangle = wrapTo2Pi(restriction((C3+3)/2)-C3*pi/2);
+    %else
+    %    eangle = theta2b;
     end
     
-    c = mod(C1*C2*C3*(eangle-aangle), 2*pi);
-    if(c > mod(C1*C2*C3*(restriction((-C2+3)/2) - aangle),2*pi) || c == 0)
+    % Check if C2 is in the no-go zone
+    c = wrapTo2Pi(C2*(eangle-aangle));
+    bitangentC2 = aangle + (-C1*C2+1)/2*pi;
+    if(c > wrapTo2Pi(C2*(restriction((-C2+3)/2)-C2*pi/2 - bitangentC2)))
         param.SEG(1) = -1;
         param.angle = [0 0];
         return;
     end
     
-    eangleb = eangle-C3*pi/2;
-    aangleb = aangle+C1*pi/2;
-    b = (-sin(eangleb).*dx+cos(eangleb).*dy)./sin(aangleb-eangleb);
-    d = -1./cos(eangleb).*(cos(aangleb).*b-dx);
-    %b = (sin(aangleb).*dx-cos(aangleb).*dy)./sin(eangleb-aangleb);
-    %d = 1./cos(aangleb).*(cos(eangleb).*b+dx);
+    % Calculate Segments algebraic distances (based on the intersection)
+    [b,d] = distTT(aangle+C1*pi/2,eangle-C3*pi/2,dx,dy,r);
     
+    % Fix domains of intersection
     i = 0;
     if(b <0 && b > -10000)
-        while(b <0 && i < 10000)
+        while(b <0 && i < 1000)
             aangle = wrapTo2Pi(aangle - C1*0.001);
-            eangleb = eangle-C3*pi/2;
-            aangleb = aangle+C1*pi/2;
-            b = (-sin(eangleb).*dx+cos(eangleb).*dy)./sin(aangleb-eangleb);
-            d = -1./cos(eangleb).*(cos(aangleb).*b-dx);
+            %eangle = wrapTo2Pi(eangle + C3*0.001);
+            [b,d] = distTT(aangle-C1*pi/2,eangle-C3*pi/2,dx,dy,r);
             i = i+1;
         end
     end
     
     i = 0;
-    if(d <0 && b > -1000)
+    if(d <0 && d > -1000)
         while(d <0 && i < 1000)
             eangle = wrapTo2Pi(eangle + C3*0.001);
-            eangleb = eangle-C3*pi/2;
-            aangleb = aangle+C1*pi/2;
-            b = (-sin(eangleb).*dx+cos(eangleb).*dy)./sin(aangleb-eangleb);
-            d = -1./cos(eangleb).*(cos(aangleb).*b-dx);
+            %aangle = wrapTo2Pi(aangle - C1*0.001);
+            [b,d] = distTT(aangle-C1*pi/2,eangle-C3*pi/2,dx,dy,r);
             i = i+1;
         end
     end
     
+    % Check if intersecting
     if(b < 0 || d < 0)
         param.SEG(1) = -1;
         param.angle = [0 0];
         return;
     end        
     
+    % Added length to path
     L = 2*abs(tan((aangle-eangle)/2));
-    param.SEG(1) = wrapTo2Pi(C1*(aangle - p1(3))); 
+    %L = 0;
+    
+    param.SEG(1) = wrapTo2Pi(C1*(aangle - theta1b)); 
     param.SEG(2) = d/r+L; 
     param.SEG(3) = c;
     param.SEG(4) = b/r+L; 
-    param.SEG(5) = wrapTo2Pi(C3*(p2(3) - eangle));
+    param.SEG(5) = wrapTo2Pi(C3*(theta2b - eangle));
     param.angle(1) = aangle;
     param.angle(2) = eangle;
 end
 
-function param = is_dubins_achievable(p1,p2, Ol, Or, Outerleft, Outerright, Innerleft, Innerright, restriction, r)
+function param = is_dubins_achievable(p1,p2, Ol, Or, Outerleft, Outerright, Innerleft, Innerright, TangentsL, TangentsR, restriction, r)
     param.LSL = -1;
     param.RSL = -1;
     param.RSR = -1;
     param.LSR = -1;
+    param.LRL = -1;
+    param.RLR = -1;
     
     u.left = 1;
     u.right = -1;
@@ -293,20 +348,17 @@ function param = is_dubins_achievable(p1,p2, Ol, Or, Outerleft, Outerright, Inne
     Lwindminfinal = wrapTo2Pi(restriction(2)-u.left*pi/2);
     Rwindminstart = wrapTo2Pi(restriction(2)-u.right*pi/2);
     Rwindminfinal = wrapTo2Pi(restriction(1)-u.right*pi/2);
-    
-    Outerleft = Outerleft - [u.left*pi/2, u.left*pi/2];
-    Outerright = Outerright - [u.right*pi/2, u.right*pi/2];
 
     %LSL
-    Lts = mod(-u.left*(Lstart - Outerleft(1)),2*pi) < mod(-u.left*(Lstart - Lwindminstart),2*pi);
-    Ltf = mod(-u.left*(Outerleft(2) - Lfinal),2*pi) < mod(-u.left*(Lwindminfinal - Lfinal),2*pi);
+    Lts = wrapTo2Pi(-u.left*(Lstart - Outerleft(1))) < wrapTo2Pi(-u.left*(Lstart - Lwindminstart));
+    Ltf = wrapTo2Pi(-u.left*(Outerleft(2) - Lfinal)) < wrapTo2Pi(-u.left*(Lwindminfinal - Lfinal));
     param.LSL = Lts && Ltf;
     clear Lts Ltf
 
     %LSR
     if(norm(Or(2,:)-Ol(1,:)) > 2*r)
-        Lts = mod(-u.left*(Lstart - Innerleft(1)),2*pi) < mod(-u.left*(Lstart - Lwindminstart),2*pi);
-        Rtf = mod(-u.right*(Innerleft(2) - Rfinal),2*pi) < mod(-u.right*(Rwindminfinal - Rfinal),2*pi);
+        Lts = wrapTo2Pi(-u.left*(Lstart - Innerleft(1))) < wrapTo2Pi(-u.left*(Lstart - Lwindminstart));
+        Rtf = wrapTo2Pi(-u.right*(Innerleft(2) - Rfinal)) < wrapTo2Pi(-u.right*(Rwindminfinal - Rfinal));
         param.LSR= Lts && Rtf;
         clear Lts Rtf
     else
@@ -314,20 +366,61 @@ function param = is_dubins_achievable(p1,p2, Ol, Or, Outerleft, Outerright, Inne
     end
 
     %RSR
-    Rts = mod(-u.right*(Rstart - Outerright(1)),2*pi) < mod(-u.right*(Rstart - Rwindminstart),2*pi);
-    Rtf = mod(-u.right*(Outerright(2) - Rfinal),2*pi) < mod(-u.right*(Rwindminfinal - Rfinal),2*pi);
+    Rts = wrapTo2Pi(-u.right*(Rstart - Outerright(1))) < wrapTo2Pi(-u.right*(Rstart - Rwindminstart));
+    Rtf = wrapTo2Pi(-u.right*(Outerright(2) - Rfinal)) < wrapTo2Pi(-u.right*(Rwindminfinal - Rfinal));
     param.RSR = Rts && Rtf;
     clear Rts Rtf
 
     %RSL
     if(norm(Ol(2,:)-Or(1,:)) > 2*r)
-        Rts = mod(-u.right*(Rstart - Innerright(1)),2*pi) < mod(-u.right*(Rstart - Rwindminstart),2*pi);
-        Ltf = mod(-u.left*(Innerright(2) - Lfinal),2*pi) < mod(-u.left*(Lwindminfinal - Lfinal),2*pi);
+        Rts = wrapTo2Pi(-u.right*(Rstart - Innerright(1))) < wrapTo2Pi(-u.right*(Rstart - Rwindminstart));
+        Ltf = wrapTo2Pi(-u.left*(Innerright(2) - Lfinal)) < wrapTo2Pi(-u.left*(Lwindminfinal - Lfinal));
         param.RSL = Rts && Ltf;
         clear Rts Ltf
     else
         param.RSL = 0;
     end
+
+    %LRL
+    if(norm(Ol(2,:)-Ol(1,:)) <= 4*r)
+        Lts = wrapTo2Pi(-u.left*(Lstart - TangentsL(1))) < wrapTo2Pi(-u.left*(Lstart - Lwindminstart));
+        Ltf = wrapTo2Pi(-u.left*(TangentsL(2) - Lfinal)) < wrapTo2Pi(-u.left*(Lwindminfinal - Lfinal));
+        param.LRL = Lts && Ltf;
+        clear Lts Ltf
+    else
+        param.LRL = 0;
+    end
+
+    %RLR
+    if(norm(Or(2,:)-Or(1,:)) <= 4*r)
+        Rts = wrapTo2Pi(-u.right*(Rstart - TangentsR(1))) < wrapTo2Pi(-u.right*(Rstart - Rwindminstart));
+        Rtf = wrapTo2Pi(-u.right*(TangentsR(2) - Rfinal)) < wrapTo2Pi(-u.right*(Rwindminfinal - Rfinal));
+        param.RLR = Rts && Rtf;
+        clear Rts Rtf
+    else
+        param.RLR = 0;
+    end
+end
+
+function [b,d] = distTT(theta1b,theta2b, dx, dy,r)
+    %b = (-sin(eangle).*dx+cos(eangle).*dy)./sin(aangle-eangle);
+    %d = -1./cos(eangle).*(cos(aangle).*b-dx);
+    if(abs(sin(theta2b-theta1b) ) < 10e-10)
+        b = -1;
+        d = -1;
+        return;
+    end
+    if(abs(cos(theta2b)) >  10e-10)
+        b = (sin(theta1b).*dx-cos(theta1b).*dy)./sin(theta2b-theta1b);
+        d = -1./cos(theta1b).*(cos(theta2b).*b+dx);
+    elseif(abs(sin(theta2b)) >  10e-10)
+        b = -(cos(theta1b).*dy-sin(theta1b).*dx)./sin(theta1b-theta2b)
+        d = 1./sin(theta1b).*(sin(theta2b).*b+dy)
+    end
+    %b = -(cos(theta1b).*dy-sin(theta1b).*dx)./sin(theta1b-theta2b)
+    %d = 1./sin(theta1b).*(sin(theta2b).*b+dy)
+    %b = -(-sin(theta2b).*dx+cos(theta2b).*dy)./sin(theta1b-theta2b)
+    %d = -1./cos(theta2b).*(cos(theta1b).*b-dx)
 end
 
 function param = dubins_LSL(alpha, beta, d)
