@@ -147,8 +147,8 @@ function [ param, all ] = dubins_restricted_core( p1, p2, r, psi, delta )
     test_param(12,:).angle = -1;
     % Compute path for each configuration
     if(~param.achievable.LSL && ~param.achievable.LRL)
-        test_param(1,:) = dubins_CSCSC(p1, p2, r, Outerleft, restriction, u.left, u.left, u.left);
-        test_param(2,:) = dubins_CSCSC(p1, p2, r, Outerleft, restriction, u.left, u.right, u.left);
+        test_param(1,:) = dubins_CSCSC2(p1, p2, r, Outerleft, psi, delta, u.left, u.left, u.left);
+        test_param(2,:) = dubins_CSCSC2(p1, p2, r, Outerleft, psi, delta, u.left, u.right, u.left);
     else
         if(norm(Or(2,:)-Ol(1,:)) > 4*r)
             test_param(1,:) = dubins_LSL(alpha,beta,d);
@@ -161,8 +161,8 @@ function [ param, all ] = dubins_restricted_core( p1, p2, r, psi, delta )
     end
     
     if(~param.achievable.RSR && ~param.achievable.RLR)
-        test_param(3,:) = dubins_CSCSC(p1, p2, r, Outerright, restriction, u.right, u.left, u.right);
-        test_param(4,:) = dubins_CSCSC(p1, p2, r, Outerright, restriction, u.right, u.right, u.right);
+        test_param(3,:) = dubins_CSCSC2(p1, p2, r, Outerright, psi, delta, u.right, u.left, u.right);
+        test_param(4,:) = dubins_CSCSC2(p1, p2, r, Outerright, psi, delta, u.right, u.right, u.right);
             test_param(11,:).SEG = -1;
             test_param(12,:).SEG = -1;
     else
@@ -178,8 +178,8 @@ function [ param, all ] = dubins_restricted_core( p1, p2, r, psi, delta )
     
     if(norm(Ol(2,:)-Or(1,:)) > 2*r)
         if(~param.achievable.RSL)
-            test_param(5,:) = dubins_CSCSC(p1, p2, r, Innerright, restriction, u.right, u.left, u.left);
-            test_param(6,:) = dubins_CSCSC(p1, p2, r, Innerright, restriction, u.right, u.right, u.left);
+            test_param(5,:) = dubins_CSCSC2(p1, p2, r, Innerright, psi, delta, u.right, u.left, u.left);
+            test_param(6,:) = dubins_CSCSC2(p1, p2, r, Innerright, psi, delta, u.right, u.right, u.left);
         else
             test_param(5,:) = dubins_RSL(alpha,beta,d);
             test_param(6,:).SEG = -1;
@@ -192,8 +192,8 @@ function [ param, all ] = dubins_restricted_core( p1, p2, r, psi, delta )
     
     if(norm(Or(2,:)-Ol(1,:)) > 2*r)
         if(~param.achievable.LSR)
-            test_param(7,:) = dubins_CSCSC(p1, p2, r, Innerleft, restriction, u.left, u.left, u.right);
-            test_param(8,:) = dubins_CSCSC(p1, p2, r, Innerleft, restriction, u.left, u.right, u.right);
+            test_param(7,:) = dubins_CSCSC2(p1, p2, r, Innerleft, psi, delta, u.left, u.left, u.right);
+            test_param(8,:) = dubins_CSCSC2(p1, p2, r, Innerleft, psi, delta, u.left, u.right, u.right);
         else
             test_param(7,:) = dubins_LSR(alpha,beta,d);
             test_param(8,:).SEG = -1;
@@ -235,6 +235,89 @@ function [ param, all ] = dubins_restricted_core( p1, p2, r, psi, delta )
     else
         return;
     end
+end
+
+function param = dubins_CSCSC2(p1, p2, r, bitangent, psi, delta, C1,C2,C3)
+    dx = p2(1) + r*cos(p2(3)+C3*pi/2) - (p1(1)  + r*cos(p1(3)+C1*pi/2));
+    dy = p2(2) + r*sin(p2(3)+C3*pi/2) - (p1(2)  + r*sin(p1(3)+C1*pi/2));
+
+    % Tranforming to circle frame
+    theta1b = wrapTo2Pi(p1(3)-C1*pi/2);
+    theta2b = wrapTo2Pi(p2(3)-C3*pi/2);
+
+    %domain1 = [theta1b, restriction((-C1+3)/2)-C1*pi/2];
+    %domain2 = [theta2b, restriction((C3+3)/2)-C3*pi/2];
+    domain1 = [wrapToPi(theta1b), wrapToPi(wrapTo2Pi(psi)-C1*wrapTo2Pi(delta+pi/2))];
+    domain2 = [wrapToPi(wrapTo2Pi(psi)+C3*wrapTo2Pi(delta-pi/2))-C3*2*pi, wrapToPi(theta2b)];
+
+    %if(C1*domain1(1) > C1*domain1(2))
+    %    domain1(1) = domain1(1)-2*pi;
+    %end
+    %if(domain2(1) > domain2(2))
+    %    domain2(1) = domain2(1)-2*pi;
+    %end
+
+    domain1d1 = wrapTo2Pi(domain1(1):C1*0.01:domain1(2));
+    domain1d2 = wrapTo2Pi(domain2(1):C3*0.01:domain2(2));
+
+    d1 = repelem(domain1d1,size(domain1d2,2));
+    d2 = repmat(domain1d2,[1,size(domain1d1,2)]);
+
+    d1C2 = wrapTo2Pi(d1+(-C1*C2+1)/2*pi);
+    d2C2 = wrapTo2Pi(d2+(-C2*C3+1)/2*pi);
+    c = wrapTo2Pi(C2*(d2C2-d1C2));
+
+    d1c = d1(c <= wrapTo2Pi(C2*(wrapTo2Pi(wrapTo2Pi(psi)-C2*wrapTo2Pi(delta+pi/2)) - d1C2)));
+    d2c = d2(c <= wrapTo2Pi(C2*(wrapTo2Pi(wrapTo2Pi(psi)-C2*wrapTo2Pi(delta+pi/2)) - d1C2)));
+
+    d1C2 = wrapTo2Pi(d1c+(-C1*C2+1)/2*pi);
+    d2C2 = wrapTo2Pi(d2c+(-C2*C3+1)/2*pi);
+    c = wrapTo2Pi(C2*(d2C2-d1C2));
+
+    [b,d]=distTT2(d1c',d2c',dx,dy,r,c<pi,C1,C3);
+    bp = b(b>=0&d>=0);
+    dp = d(b>=0&d>=0);
+
+    d1p = d1c(b>=0&d>=0);
+    d2p = d2c(b>=0&d>=0);
+
+    d1s = abs(wrapToPi(bitangent(1))-wrapToPi(d1p));
+    d2s = abs(wrapToPi(d2p) - wrapToPi(bitangent(2)));
+    [a,ai]=min(d1s);
+    [e,ei]=min(d2s);
+    [c,ci]=min(bp+dp);
+    %%
+    if(size(ai,2) == 0 || size(ei,2) == 0)
+        param.SEG(1) = -1;
+        param.angle = [0 0];
+        return;
+    end
+    a = [d1p(ai(1)), d2p(ai(1)); d1p(ei(1)), d2p(ei(1))];
+    tta = [bp(ai(1)),dp(ai(1));bp(ei(1)),dp(ei(1))];
+    toc
+
+    [anglen,anglei] = min([sum(tta(1,:)),sum(tta(2,:))]);
+    aangle = a(anglei,1);
+    eangle = a(anglei,2);
+    bdist = tta(anglei,1);
+    ddist = tta(anglei,2);
+
+    %aangle = d1p(ci);
+    %eangle = d2p(ci);
+    %bdist = bp(ci);
+    %ddist = dp(ci);
+    
+    aangleC2 = wrapTo2Pi(aangle+(-C1*C2+1)/2*pi);
+    eangleC2 = wrapTo2Pi(eangle+(-C2*C3+1)/2*pi);
+    cangle = wrapTo2Pi(C2*(eangleC2-aangleC2));
+    
+    param.SEG(1) = wrapTo2Pi(C1*(aangle - theta1b)); 
+    param.SEG(2) = bdist/r;
+    param.SEG(3) = cangle;
+    param.SEG(4) = ddist/r;
+    param.SEG(5) = wrapTo2Pi(C3*(theta2b - eangle));
+    param.angle(1) = aangle;
+    param.angle(2) = eangle;
 end
 
 function param = dubins_CSCSC(p1, p2, r, bitangent, restriction, C1,C2,C3)
@@ -402,6 +485,50 @@ function param = is_dubins_achievable(p1,p2, Ol, Or, Outerleft, Outerright, Inne
     end
 end
 
+function [b,d] = distTT2(theta1,theta2, dx, dy,r,s,C1,C3)
+    theta1b = theta1+C1*pi/2;
+    theta2b = theta2+C3*pi/2;
+    dx = dx + r*(cos(theta2) - cos(theta1));
+    dy = dy + r*(sin(theta2) - sin(theta1));
+    L = r*abs(tan((theta1b-theta2b)/2));
+    
+    flag = (cos(theta1b) ~= 0);
+    theta1b1 = theta1b(flag);
+    theta2b1 = theta2b(flag);
+    dx1 = dx(flag);
+    dy1 = dy(flag);
+    b(flag) = (sin(theta1b1).*dx1-cos(theta1b1).*dy1)./sin(theta2b1-theta1b1);
+    d(flag) = -1./cos(theta1b1).*(cos(theta2b1).*b(flag)'+dx1);
+    
+    flag = (cos(theta2b) ~= 0);
+    theta1b1 = theta1b(flag);
+    theta2b1 = theta2b(flag);
+    dx1 = dx(flag);
+    dy1 = dy(flag);
+    b(flag) = (-sin(theta2b1).*dx1+cos(theta2b1).*dy1)./sin(theta1b1-theta2b1);
+    d(flag) = -1./cos(theta2b1).*(cos(theta1b1).*b(flag)'-dx1);
+    
+    flag = (sin(theta1b) ~= 0);
+    theta1b1 = theta1b(flag);
+    theta2b1 = theta2b(flag);
+    dx1 = dx(flag);
+    dy1 = dy(flag);
+    b(flag) = (cos(theta1b1).*dy1-sin(theta1b1).*dx1)./sin(theta1b1-theta2b1);
+    d(flag) = -1./sin(theta1b1).*(sin(theta2b1).*b(flag)'+dy1);
+    
+    flag = (sin(theta2b) ~= 0);
+    theta1b1 = theta1b(flag);
+    theta2b1 = theta2b(flag);
+    dx1 = dx(flag);
+    dy1 = dy(flag);
+    b(flag) = (-cos(theta2b1).*dy1+sin(theta2b1).*dx1)./sin(theta2b1-theta1b1);
+    d(flag) = -1./sin(theta2b1).*(sin(theta1b1).*b(flag)'-dy1);
+    
+    
+    b = b + (-2*s+1).*L';
+    d = d + (-2*s+1).*L';
+end
+
 function [b,d] = distTT(theta1b,theta2b, dx, dy,r)
     %b = (-sin(eangle).*dx+cos(eangle).*dy)./sin(aangle-eangle);
     %d = -1./cos(eangle).*(cos(aangle).*b-dx);
@@ -414,8 +541,8 @@ function [b,d] = distTT(theta1b,theta2b, dx, dy,r)
         b = (sin(theta1b).*dx-cos(theta1b).*dy)./sin(theta2b-theta1b);
         d = -1./cos(theta1b).*(cos(theta2b).*b+dx);
     elseif(abs(sin(theta2b)) >  10e-10)
-        b = -(cos(theta1b).*dy-sin(theta1b).*dx)./sin(theta1b-theta2b)
-        d = 1./sin(theta1b).*(sin(theta2b).*b+dy)
+        b = -(cos(theta1b).*dy-sin(theta1b).*dx)./sin(theta1b-theta2b);
+        d = 1./sin(theta1b).*(sin(theta2b).*b+dy);
     end
     %b = -(cos(theta1b).*dy-sin(theta1b).*dx)./sin(theta1b-theta2b)
     %d = 1./sin(theta1b).*(sin(theta2b).*b+dy)

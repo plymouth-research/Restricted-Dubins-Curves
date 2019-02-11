@@ -134,7 +134,7 @@ function [ path ] = dubins_restricted_curve( p1, p2, r, psi, delta, stepsize, qu
             for i = 1:size(test,2)
                 if(test(i).SEG_param ~= -1)
                     figure('name',int2str(test(i).type));
-                    stepsize = dubins_length(param)/1000;
+                    stepsize = dubins_length(test(i))/1000;
                     test_path = dubins_path_sample_many(test(i), stepsize);
                     DrawPacman(p1, p2, r, psi, delta);
                     plot(test_path(:,1), test_path(:,2), 'LineWidth' , 2); axis equal; hold on
