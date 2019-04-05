@@ -25,29 +25,13 @@
 %                  set". Robotics and Autonomous Systems 34 (2001) 179�V202
 %       https://github.com/UlysseVautier/MATLAB/Dubins-Curves
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Original Source: Andrew Walker, Ulysse Vautier
+% Original Source: Andrew Walker, Ewing Kang
+% Adding restriction to path : Ulysse Vautier
 % Date: 2019.01.01
 % contact: ulysse.vautier [at] gmail.com
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Copyright (c) 2019, Ulysse Vautier                                             % 
-%                                                                                %
-% Permission is hereby granted, free of charge, to any person obtaining a copy   %
-% of this software and associated documentation files (the "Software"), to deal  %
-% in the Software without restriction, including without limitation the rights   %
-% to use, copy, modify, merge, publish, distribute, sublicense, and/or sell      %
-% copies of the Software, and to permit persons to whom the Software is          %  
-% furnished to do so, subject to the following conditions:                       %
-%                                                                                %
-% The above copyright notice and this permission notice shall be included in     %
-% all copies or substantial portions of the Software.                            %
-%                                                                                %
-% THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR     %
-% IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,       %
-% FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE    %
-% AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER         %
-% LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,  %
-% OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN      %
-% THE SOFTWARE.                                                                  %
+% Released under GPLv3 license                                                   %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function [ path ] = dubins_restricted_curve( p1, p2, r, psi, delta, stepsize, quiet, all )
 %%%%%%%%%%%%%%%%%%%%%%%%% DEFINE %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -80,7 +64,7 @@ function [ path ] = dubins_restricted_curve( p1, p2, r, psi, delta, stepsize, qu
       
     % the return parameter from dubins_core
     % param.p_init = p1;              % the initial configuration
-    % param.SEG_param = [0, 0, 0];    % the lengths of the three segments
+    % param.seg_param = [0, 0, 0];    % the lengths of the three segments
     % param.angle = [0, 0];          % angles of departure and arrival from C1 and C3
     % param.r = r;                    % model forward velocity / model angular velocity turning radius
     % param.type = -1;                % path type. one of LSL, LSR, ... 
@@ -90,17 +74,13 @@ function [ path ] = dubins_restricted_curve( p1, p2, r, psi, delta, stepsize, qu
     % Handle inputs.
     if nargin < 4
         error('Function requires at least four inputs.');
-    end
-    if nargin < 5
+    elseif nargin < 5
         delta = 0.1;
-    end
-    if nargin < 6
+    elseif nargin < 6
         stepsize = 0;
-    end
-    if nargin < 7 
+    elseif nargin < 7 
         quiet = 0;  %Default/undefined is not quiet
-    end
-    if nargin < 8 
+    elseif nargin < 8 
         all = 0;  %Default/undefined is not all
     end
     
@@ -132,7 +112,7 @@ function [ path ] = dubins_restricted_curve( p1, p2, r, psi, delta, stepsize, qu
         disp('plot drawing time'); toc;
         if(all)
             for i = 1:size(test,2)
-                if(test(i).SEG_param ~= -1)
+                if(test(i).seg_param ~= -1)
                     figure('name',int2str(test(i).type));
                     stepsize = dubins_length(test(i))/1000;
                     test_path = dubins_path_sample_many(test(i), stepsize);
@@ -149,7 +129,7 @@ function [ path ] = dubins_restricted_curve( p1, p2, r, psi, delta, stepsize, qu
 end
 
 function path = dubins_path_sample_many( param, stepsize)
-    if param.STATUS < 0
+    if param.flag < 0
         path = 0;
         return
     end
@@ -166,9 +146,9 @@ function path = dubins_path_sample_many( param, stepsize)
 end
 
 function l = dubins_length(param)
-    l = param.SEG_param(1);
-    for i=2:length(param.SEG_param)
-        l = l + param.SEG_param(i);
+    l = param.seg_param(1);
+    for i=2:length(param.seg_param)
+        l = l + param.seg_param(i);
     end
     l = l * param.r;
 end
@@ -183,7 +163,7 @@ end
  * @returns    - -1 if 't' is not in the correct range
 %}
 function end_pt = dubins_path_sample(param, t)
-    if( t < 0 || t >= dubins_length(param) || param.STATUS < 0)
+    if( t < 0 || t >= dubins_length(param) || param.flag < 0)
         end_pt = -1;
         return;
     end
@@ -231,7 +211,7 @@ function end_pt = dubins_path_sample(param, t)
     % Generate the target configuration
     
     types = 0;
-    if(length(param.SEG_param) < 5)
+    if(length(param.seg_param) < 5)
         types = DIRDATASTANDARD(round(param.type/2), :);
     else
         types = DIRDATA(param.type, :);
@@ -239,13 +219,13 @@ function end_pt = dubins_path_sample(param, t)
     
     param1 = 0;
     mid_pt1 = p_init;
-    for i=1:length(param.SEG_param)-1
-        param1 = [param1 param.SEG_param(i)];
+    for i=1:length(param.seg_param)-1
+        param1 = [param1 param.seg_param(i)];
         mid_pt1 = [mid_pt1 ;dubins_segment( param1(i+1), mid_pt1(i,:), types(i) )];
     end
     
     end_pt = dubins_segment( tprime-sum(param1(1:end)), mid_pt1(end,:),  types(end) );
-    for i=1:length(param.SEG_param)-1
+    for i=1:length(param.seg_param)-1
         if( tprime < sum(param1(2:i+1)) ) 
             end_pt = dubins_segment( tprime-sum(param1(1:i)), mid_pt1(i,:),  types(i) );
             break;
@@ -254,10 +234,10 @@ function end_pt = dubins_path_sample(param, t)
     
     %{
     types = DIRDATA(param.type, :);
-    param1 = param.SEG_param(1);
-    param2 = param.SEG_param(2);
-    param3 = param.SEG_param(3);
-    param4 = param.SEG_param(4);
+    param1 = param.seg_param(1);
+    param2 = param.seg_param(2);
+    param3 = param.seg_param(3);
+    param4 = param.seg_param(4);
     mid_pt1 = dubins_segment( param1, p_init, types(1) );
     mid_pt2 = dubins_segment( param2, mid_pt1,  types(2) );
     mid_pt3 = dubins_segment( param3, mid_pt2,  types(3) );

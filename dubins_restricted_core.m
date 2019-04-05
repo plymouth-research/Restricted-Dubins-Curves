@@ -8,36 +8,20 @@
 % Output: the function returns 4 field:
 %       type: defines one of the 8 shape of the CSCSC curve
 %       r: turning radius, also the scaling factor for the curve paramater
-%       SEG_param: defines the parameter of the three segments in row vector
+%       seg_param: defines the parameter of the three segments in row vector
 % Reference:
 %       https://github.com/AndrewWalker/Dubins-Curves#shkel01
 %       Shkel, A. M. and Lumelsky, V. (2001). "Classification of the Dubins
 %                  set". Robotics and Autonomous Systems 34 (2001) 179�V202
 %       https://github.com/UlysseVautier/MATLAB/Dubins-Curves
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Original Source: Andrew Walker, Ulysse Vautier
+% Original Source: Andrew Walker, Ewing Kang
+% Adding restriction to path : Ulysse Vautier
 % Date: 2019.01.01
 % contact: ulysse.vautier [at] gmail.com
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Copyright (c) 2019, Ulysse Vautier                                             % 
-%                                                                                %
-% Permission is hereby granted, free of charge, to any person obtaining a copy   %
-% of this software and associated documentation files (the "Software"), to deal  %
-% in the Software without restriction, including without limitation the rights   %
-% to use, copy, modify, merge, publish, distribute, sublicense, and/or sell      %
-% copies of the Software, and to permit persons to whom the Software is          %  
-% furnished to do so, subject to the following conditions:                       %
-%                                                                                %
-% The above copyright notice and this permission notice shall be included in     %
-% all copies or substantial portions of the Software.                            %
-%                                                                                %
-% THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR     %
-% IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,       %
-% FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE    %
-% AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER         %
-% LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,  %
-% OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN      %
-% THE SOFTWARE.                                                                  %
+% Released under GPLv3 license                                                   %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
@@ -69,14 +53,15 @@ function [ param, all ] = dubins_restricted_core( p1, p2, r, psi, delta )
                 L_SEG, S_SEG, L_SEG, S_SEG, R_SEG ;...
                 L_SEG, S_SEG, R_SEG, S_SEG, R_SEG ]; 
     %}
-    
+  %%%%%%%%%%%%%%%% END DEFINE %%%%%%%%%%%%%%%%
+  
     % the return parameter
     param.p_init = p1;              % the initial configuration
-    param.SEG_param = [0, 0, 0, 0, 0];    % the lengths of the three segments
+    param.seg_param = [0, 0, 0, 0, 0];    % the lengths of the three segments
     param.angle = [0, 0];          % angles of departure and arrival from C1 and C3
     param.r = r;                    % model forward velocity / model angular velocity turning radius
     param.type = -1;                % path type. one of LSL, LSR, ... 
-    param.STATUS = 0;
+    param.flag = 0;
     param.achievable = 0;           % which paths are achievable
 
     %%%%%%%%%%%%%%%%%%%%%%%%% p1 %%%%%%%%%%%%%%%%%%%%%%%%%
@@ -86,7 +71,7 @@ function [ param, all ] = dubins_restricted_core( p1, p2, r, psi, delta )
     D = sqrt( dx^2 + dy^2 );
     d = D / r;                  % distance is shrunk by r, this make lengh calculation very easy
     if( r <= 0 )
-        param.STATUS = -1;
+        param.flag = -1;
         return;
     end
     
@@ -207,12 +192,12 @@ function [ param, all ] = dubins_restricted_core( p1, p2, r, psi, delta )
     best_word = -1;
     best_cost = -1;
     for i = 1:1:12
-        if(test_param(i).SEG ~= -1) 
+        if(test_param(i,:).SEG ~= -1) 
             cost = sum(test_param(i,:).SEG);
             if(cost < best_cost) || (best_cost == -1)
                 best_word = i;
                 best_cost = cost;
-                param.SEG_param = test_param(i,:).SEG;
+                param.seg_param = test_param(i,:).SEG;
                 param.angle = test_param(i,:).angle;
                 param.type = i;
             end
@@ -220,17 +205,17 @@ function [ param, all ] = dubins_restricted_core( p1, p2, r, psi, delta )
     end
     
     for i = 1:1:12
-        all(i).SEG_param = test_param(i,:).SEG;
+        all(i).seg_param = test_param(i,:).SEG;
         all(i).angle = test_param(i,:).angle;
         all(i).type = i;
         all(i).p_init = p1;
         all(i).r = r;
-        all(i).STATUS = 0;
+        all(i).flag = 0;
         all(i).achievable = 0;
     end
 
     if(best_word == -1) 
-        param.STATUS = -2;             % NO PATH
+        param.flag = -2;             % NO PATH
         return;
     else
         return;
